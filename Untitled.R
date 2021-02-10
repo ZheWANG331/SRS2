@@ -3,11 +3,13 @@ require(KernSmooth)
 require(logspline)
 set.seed(1)
 require(ggplot2)
+require(EnvStats)
+
 ## 1
 n=1000
 data1=rbeta(n,0.5,0.5)
 
-data2=0.8*rnorm(n,0,1)+0.2*rnorm(n,2,0.04)
+data2=rnormMix(n,0,1,2,0.04,0.2)
 
 data3=rnorm(n,0,1)
 
@@ -39,7 +41,7 @@ lines(locpoly(data2,bandwidth = 0.25),col="red", lty=2)
 par(new=T)
 plot(logspline(data2),xlab=" ", ylab="",col="green", xlim = c(-2.4,3.3), ylim=c(0,0.5), lty=2)
 par(new=T)
-curve(0.8*dnorm(x,0,1)+0.2*dnorm(x,2,0.04),xlab=" ", ylab="",col="black",xlim = c(-2.4,3.3), ylim=c(0,0.5), lty=1)
+curve(dnormMix(x,0,1,2,0.04,0.2),xlab=" ", ylab="",col="black",xlim = c(-2.4,3.3), ylim=c(0,0.5), lty=1)
 letters <- c("KDE", "Local polynomial", "Logspline","True density")
 legend("topleft", legend = letters, lty = c(2,2,2,1), col = c("blue", "red", "green","black"), cex = 0.9)
 
@@ -119,7 +121,81 @@ for (r in 1:R){
 mean(ise4)
 mean(ise4[,1])
 
-####===============
+
+
+#########+++=============================Norm
+### MC
+n=1000
+R=1000
+ise1=matrix(NA, R,3)
+ise2=matrix(NA, R,3)
+ise3=matrix(NA, R,3)
+ise4=matrix(NA, R,3)
+
+x=rnormMix(n,0,1,2,0.04,0.2)
+
+
+## hist
+n=1000
+R=1000
+for (r in 1:R){
+  data1=rnormMix(n,0,1,2,0.04,0.2)
+  a=hist(data1, breaks=12, freq = FALSE)
+  coun=a$counts
+  densa=a$density
+  k=length(a$counts)
+  
+  yhat=rep(densa[1],coun[1])
+  for (i in 2:k){
+    yhat=c(yhat,rep(densa[i],coun[i]))
+  }
+  data=sort(data1)
+  ise1[r,3]=sfsmisc::integrate.xy(data,(yhat-0.8*dnorm(data,0,1)-0.2*dnorm(data,2,0.04))^2)
+}
+
+mean(ise1[,1])
+
+
+## kde 
+n=250
+R=1000
+for (r in 1:R){
+  x=rnormMix(n,0,1,2,0.04,0.2)
+  est=density(x)
+  ise2[r,1]=sfsmisc::integrate.xy(est$x,(est$y-dnormMix(est$x,0,1,2,0.04,0.2))^2)
+}
+
+mean(ise2[,1])
+
+## spline
+n=1000
+R=1000
+for (r in 1:R){
+  x=rnormMix(n,0,1,2,0.04,0.2)
+  est=logspline(x)
+  y=dlogspline(x,est)
+  ise3[r,3]=sfsmisc::integrate.xy(x,(y-dnormMix(x,0,1,2,0.04,0.2))^2)
+}
+
+mean(ise3)
+mean(ise3[,1])
+
+
+## local poly
+n=1000
+R=1000
+for (r in 1:R){
+  x=rnormMix(n,0,1,2,0.04,0.2)
+  est=locpoly(x, bandwidth = 0.25)
+  ise4[r,3]=sfsmisc::integrate.xy(est$x,(est$y-dnormMix(est$x,0,1,2,0.04,0.2))^2)
+}
+
+mean(ise4)
+mean(ise4[,1])
+
+
+
+####==============================
 par(mfrow=c(1,4))
 boxplot(ise1,main="ISE for Histogram",outline=FALSE,
         ylab="", xlab="",names=c("n=250", "n=500","n=1000"))
